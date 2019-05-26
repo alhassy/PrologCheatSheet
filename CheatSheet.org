@@ -1,0 +1,211 @@
+:ImportantShortcuts:
+f7 preview changes
+f8 commit each change
+f9 push changes
+:End:
+* Header                                                      :do:not:ignore:
+#+TITLE: Prolog Cheat Sheet
+# SUBTITLE: Cheat Sheet Template
+# DATE: << Winter 2019 >>
+# When we don't provide a date, one is provided for us.
+#+MACRO: URL https://github.com/alhassy/PrologCheatSheet
+#+MACRO: ShowURL @@latex:{\tiny\hspace{6em}\url{ {{{URL}}} } }@@
+#+AUTHOR: [[http://www.cas.mcmaster.ca/~alhassm/][Musa Al-hassy]] {{{ShowURL}}}
+#+EMAIL: alhassy@gmail.com
+#+DESCRIPTION: This document is written by Musa Al-hassy for his learning in the Winter of 2019.
+#+STARTUP: hideblocks
+#+STARTUP: overview
+#+TODO: BEGIN-IGNORE(b) END-IGNORE(e) } | DONE(d)
+#+OPTIONS: d:nil
+
+#+INCLUDE: CheatSheet/CheatSheetSetup.org
+
+#+PROPERTY: header-args :tangle "CheatSheet.pl" :comments link
+
+* Interactive Prolog Setup
+
+In Prolog, one declares a relationship ~r(x0, x1, …, xn)~ to be true for the declared
+~xi~ ---with a change of perspective any of the ~xi~ can be considered ‘input’ and the
+rest considered ‘output’.
+
+#+BEGIN_SRC emacs-lisp :tangle no
+(use-package prolog)
+
+
+;; Obtain “swipl” interpreter.
+(async-shell-command "brew install swi-prolog")
+
+;; alhassy-air:~ musa$ swipl --version
+;; SWI-Prolog version 8.0.2 for x86_64-darwin
+#+END_SRC
+
+The following did not work for me :'( ---so I made my own lolz.
+#+BEGIN_SRC emacs-lisp :tangle no
+(use-package ob-prolog)
+(org-babel-do-load-languages
+ 'org-babel-load-languages
+ '((prolog . t)))
+
+(use-package ediprolog)
+#+END_SRC
+
+Here's my current setup:
+#+BEGIN_SRC emacs-lisp :tangle no
+(local-set-key (kbd "<f6>") (lambda () (interactive)
+  "
+    org-babel-tangle the whole file, then execute the final query
+    in the current SRC block.
+
+    If the query mentions the variable ‘X’, then show all possible solutions
+    followed by ‘false’. Usually one presses ‘;’ to see other solutions,
+    but in Emacs this only shows one futher solution then terminates.
+    We get around this by executing essentially
+    “forall(your-query-with-X, writeln(X)).”
+    This prints all solutions X to your query.
+
+    If you want to use a variable but don't want to see all solutions,
+    then avoid using ‘X’; e.g., use ‘Y’ ^_^.
+  "
+  (-let [kill-buffer-query-functions nil]
+  (ignore-errors
+     (switch-to-buffer "*Prolog*")
+     (kill-buffer "*Prolog*"))
+
+  ;; Get final query in current source block
+  (search-forward "#+END_SRC")
+  (search-backward "% ?-")
+  ;; Copy line, without killing it.
+  (setq xx (thing-at-point 'line t))
+
+  (async-shell-command (format "swipl -s %s" (car (org-babel-tangle))) "*Prolog*")
+  (other-window 1)
+
+  ;; Paste the final query
+  (setq xx (s-chop-prefix "% ?- " xx))
+  (when (s-contains? "X" xx)
+    (setq xx (concat "writeln(\"X =\"), forall(" (s-replace "." ", writeln(X))." xx))))
+
+  (insert xx)
+  (comint-send-input nil t) ;; Send it, i.e., “press enter at prompt”.
+
+  ;; Insert query again, but do not send, in case user wishes to change it.
+  (insert xx)
+  (previous-line) (end-of-line)
+
+)))
+#+END_SRC
+
+For example:
+#+BEGIN_SRC prolog
+magicNumber(7).
+magicNumber(9).
+magicNumber(42).
+
+% ?- magicNumber(8).
+% ?- magicNumber(X).
+#+END_SRC
+
+Or
+#+BEGIN_SRC prolog
+main :-
+	write('Hello, world!').
+
+% ?- main.
+#+END_SRC
+
+ToDo: Get the query, replace (,) with space, split to words, filter those
+that start with a capital letter, these are the variables. Execute:
+forall( (query) , ( write("Var0 = "), write(Var0), write(" "), write("Var1 = "), … ) ))
+
+* Basics
+
+  + Unification only tries to make both sides of an equality true by binding free
+    variables to expressions. It does not do any arithmetic.
+
+  + Use ~is~ to perform arithmetic.
+
+#+BEGIN_SRC prolog
+% ?- X = 3 + 2.  %% X = 3 + 2
+% ?- X is 3 + 2. %% X = 5
+#+END_SRC
+
+~Print~ predicate always succeeds, never binds any variables, and prints out its
+parameter as a side effect.
+
++ Conjunction: ~p(X), q(X)~ means “let ~X~ be /a/ solution to ~p~, then use it in query ~q~.”
+  - Operational semantics: Let ~X~ be the first solution declared, found, for ~p~,
+    then try ~q~; if it fails, then /backtrack/ and pick the next declared solution to ~p~,
+    if any, and repeat until ~q~ succeeds.
+
+    For example, ~p(X), print(X), fail.~ gets a solution to ~p~, prints it, then fails
+    thereby necessitating a backtrack to obtain a different solution ~X~ for ~p~, then
+    repeats. In essence, this is prints all solutions to ~p~
+    ---a so-called “fail driven loop”.
+
+For example,
+#+BEGIN_SRC prolog
+yum(pie).
+yum(apples).
+yum(maths).
+
+% ?- yum(Y), writeln(Y), fail. %⇒ pie apples maths false.
+#+END_SRC
+
+Use built-ins ~var~ and ~novar~ to check if a variable is free or bound.
+#+BEGIN_SRC prolog
+% ?- var(Y).  %⇒ true
+% ?- Y = 2, var(Y). %⇒ false
+% ?- Y = 2, novar(Y). %⇒ true
+#+END_SRC
+
+
+
+* COMMENT Making README.md
+
+C-c C-c: Evaluate src block.
+
+#+NAME: make-readme
+#+BEGIN_SRC emacs-lisp :results none
+(with-temp-buffer
+    (insert
+    "#+EXPORT_FILE_NAME: README.md
+     #+HTML: <h1> CheatSheet </h1>
+     #+OPTIONS: toc:nil d:nil
+     # Toc is displayed below at a strategic position.
+
+     Pretty cheat sheets, or “reference cards”, obtainable from Org-mode files.
+
+     :Hide:
+     This project is to contain a listing of common results in X Theory.
+
+     *The repo contains other articles I've written on X Theory;*
+     *which may be read in a blog-format at:*
+     https://alhassy.github.io/blog/categories/#Xtheory
+     :End:
+
+     *The listing sheet, as PDF, can be found
+     [here]({{{URL}}}/blob/master/CheatSheet.pdf)*,
+     while below is an unruly html rendition.
+
+     :Hide:
+     This reference sheet is built around the system
+     https://github.com/alhassy/CheatSheet.
+     :End:
+
+     #+TOC: headlines 2
+     #+INCLUDE: CheatSheet.org
+    ")
+    ;; (set-visited-file-name "ReadIt2.md")
+    (org-mode)
+    (org-md-export-to-markdown)
+)
+#+END_SRC
+
+* COMMENT footer
+
+# Local Variables:
+# eval: (org-babel-tangle)
+# eval: (progn (org-babel-goto-named-src-block "make-readme") (org-babel-execute-src-block) (outline-hide-sublevels 1))
+# eval: (load-file "CheatSheet.el")
+# compile-command: (org-latex-export-to-pdf)
+# End:
