@@ -1,8 +1,12 @@
+# f7 preview changes
+# (local-set-key (kbd "<f7>") (lambda () (interactive) (async-shell-command (concat "open " (org-latex-export-to-pdf)))))
+
 :ImportantShortcuts:
 f7 preview changes
 f8 commit each change
 f9 push changes
 :End:
+
 * Header                                                      :do:not:ignore:
 #+TITLE: Prolog Cheat Sheet
 # SUBTITLE: Cheat Sheet Template
@@ -22,7 +26,39 @@ f9 push changes
 
 #+PROPERTY: header-args :tangle "CheatSheet.pl" :comments link
 
-* Interactive Prolog Setup
+#+TODO: TODO | spacing
+
+* LaTeX Setup                                                :ignore:
+# Can be obtained from: https://github.com/alhassy/MyUnicodeSymbols
+#
+#+LATEX_HEADER: \usepackage{/Users/musa/MyUnicodeSymbols/MyUnicodeSymbols}
+
+#+NAME: parallel enviro
+#+BEGIN_EXPORT latex
+% \setlength{\columnseprule}{2pt}
+
+\renewenvironment{parallel}[1][2] % one argument, whose default value is literal `2`.
+ {
+  \setlength{\columnseprule}{2pt}
+  \begin{minipage}[t]{\linewidth} % width of minipage is 100% times of \linewidth
+  \begin{multicols}{#1}  % default is `2`
+ }
+ {
+ \setlength{\columnseprule}{0pt}
+  \end{multicols}
+  \end{minipage}
+ }
+#+END_EXPORT
+
+# Removing the red box that appears in "minted" when using unicode.
+# Src: https://tex.stackexchange.com/questions/343494/minted-red-box-around-greek-characters
+#
+#+LATEX_HEADER: \makeatletter
+#+LATEX_HEADER: \AtBeginEnvironment{minted}{\dontdofcolorbox}
+#+LATEX_HEADER: \def\dontdofcolorbox{\renewcommand\fcolorbox[4][]{##4}}
+#+LATEX_HEADER: \makeatother
+
+* COMMENT Homemade Interactive Prolog Setup
 
 In Prolog, one declares a relationship ~r(x0, x1, …, xn)~ to be true for the declared
 ~xi~ ---with a change of perspective any of the ~xi~ can be considered ‘input’ and the
@@ -30,7 +66,6 @@ rest considered ‘output’.
 
 #+BEGIN_SRC emacs-lisp :tangle no
 (use-package prolog)
-
 
 ;; Obtain “swipl” interpreter.
 (async-shell-command "brew install swi-prolog")
@@ -95,9 +130,6 @@ Here's my current setup:
 )))
 #+END_SRC
 
-#+RESULTS:
-| lambda | nil | (interactive) |
-
 For example:
 #+BEGIN_SRC prolog
 magicNumber(7).
@@ -108,6 +140,8 @@ magicNumber(42).
 % ?- magicNumber(X).
 #+END_SRC
 
+Press ~f6~ to obtain all solutions ~X~ to this query :grin:
+
 Or
 #+BEGIN_SRC prolog
 main :- write('Hello, world!').
@@ -115,11 +149,103 @@ main :- write('Hello, world!').
 % ?- main.
 #+END_SRC
 
+This little setup has made exploring Prolog fun for me; hopefully it will make
+Prolog fun for others 😄
+
+:TODOS:
 ToDo: Get the query, replace (,) with space, split to words, filter those
 that start with a capital letter, these are the variables. Execute:
 forall( (query) , ( write("Var0 = "), write(Var0), write(" "), write("Var1 = "), … ) ))
+:END:
 
-* Nullary Facts
+* Basics
+/Everything is a relation!/ ---I.e., a table in a database!
+
+\room
+Whence programs are [[https://blog.algorexhealth.com/2018/11/a-practo-theoretical-introduction-to-logic-programming/][unidirectional]] and can be ‘run in reverse’:
+Input arguments and output arguments are the same
+thing! Only perspective shifts matter.
+
+\room
+For example, defining a relation ~plus(X, Y, Sum)~
+/intended/ to be true precisely when ~Sum ≈ X + Y~
+gives us two other methods!
+Subtract: ~plus(4, Y, 8)~ yields all solutions ~Y~ to
+the problem ~8 = 4 + Y~.
+Partitions: ~plus(X, Y, 8)~ yields all pairs ~X, Y~
+that sum to 8.
+
+
+Prolog is PROgramming in LOGic.
+
+- Prolog is declarative: A program is a collection of ‘axioms’ from which ‘theorems’
+  can be proven. For example, consider how sorting is performed:
+
+  + Procedurally: Find the minimum in the remainder of the list, swap it with the head
+    of the list; repeat on the tail of the list.
+
+  + Declaratively: ~B~ is the sorting of ~A~ /provided/ it is a permutation of ~A~ and it is
+    ordered.
+
+  Whence, a program is a theory and computation is deduction!
+
+** COMMENT Adminstriva
+
+ +  Write a prolog program as a text file with a .pl ending. For example, program.pl.
+
+ +  Open SWI-Prolog by invoking swipl in the terminal.
+
+ + In SWI-Prolog, type [program] to load the program, i.e. the file name in brackets, but without the ending.
+
+ + In order to query the loaded program, type goals and watch the output.
+
+ + To exit SWI-Prolog, type halt..
+
+ Alternatively, you can also load the program by passing its name as a parameter to SWI-Prolog: swipl -s program.pl.
+
+* Unification
+
+# Prolog's execution model is based on 4 building blocks:
+# Logical or, Logical and, term rewriting, and unification.
+
+  + Unification :: Can the given terms be made to represent the same structure?
+    - This is how type inference is made to work in all (?) languages.
+  + Backtracking :: When a choice in unification causes it to fail, go back to the
+    most recent choice point and select the next avialable choice.
+
+\room
+Unification:
+  1. A constant unified only with itself.
+  2. A variable unifies with anything.
+  3. Two structures, terms, unify precisely when they have
+     the same head and the same number of arguments,
+     and the corresponding arguments unify recursively.
+
+\room
+Unification performs no simplification, whence no arithmetic.
+This means, for example, we can form pairs by sticking an infix operator between two items; moreover we can form distinct kinds of pairs by using different operators:
+#+BEGIN_SRC prolog :tangle no
+?- C + "nice" = woah + Z.
+C = woah,
+Z = "nice".
+
+% ‘+’ and ‘/’ are different, so no way to make these equal.
+?- C + "nice" = woah / Z.
+false.
+#+END_SRC
+
+** COMMENT Informally, in pseudo-Prolog:
+#+BEGIN_SRC prolog :tangle no
+unify(X, Y) :- X = Y.
+unify(X, Y) :- nonvar(X), nonvar(Y), X = Y.
+unify(F(X0, …, XN), G(Y0, …, YN)) :- F = G, X_i = Y_i.
+
+% ?- unify(A, B). %⇒ true with A = B.
+% ?- unify(1, 2). %⇒ false.
+
+#+END_SRC
+
+* Facts ---Nullary Relations
 
 We declare relations by having them begin with a lowercase letter;
 variables are distinguished by starting with a capital letter.
@@ -165,71 +291,27 @@ man(plato).
 % ?- mortal(X). % ⇒ socrates plato
 #+END_SRC
 
-* Lists
+* Hidden Quantifiers
 
-Lists are enclosed in brackets, separated by commas,
-and constructed out of cons “|”.
-#+BEGIN_SRC prolog
-% ?- ["one", two, 3] = [Head|Tail].
+#+BEGIN_SRC prolog :tangle no
+head(X) :- body(X,Y).
+% Semantics: ∀ X. head(X) ⇐ ∃ Y. body(X,Y).
+#+END_SRC
+Queries are treated as headless clauses.
+#+BEGIN_SRC prolog :tangle no
+?- Q(X)
+% Semantics: ∃ X. Q(X).
 #+END_SRC
 
-See [[http://www.swi-prolog.org/pldoc/man?section=lists][here]] for the list library, which includes:
-| member(element, list)            |
-| append(list1, list2, lists12)    |
-| prefix(part, whole)              |
-| nth0(index, list, element)       |
-| last(list, element)              |
-| length(list, number)             |
-| reverse(list1, list2)            |
-| permutation(list1, list2)        |
-| sum_list(list, number)           |
-| max_list(list, number)           |
-| is_set(list_maybe_no_duplicates) |
-
-
-* Core Ideas
-
-Prolog's execution model is based on 4 building blocks:
-Logical or, Logical and, term rewriting, and unification.
-
-  + Unification :: Can the given terms be made to represent the same structure?
-    - This is how type inference is made to work in all (?) languages.
-  + Backtracking :: When a choice in unification causes it to fail, go back to the
-    most recent choice point and select the next avialable choice.
-
-Unification performs no simplification, whence no arithmetic.
-This means, for example, we can form pairs by sticking an infix operator between two items; moreover we can form distinct kinds of pairs by using different operators:
-#+BEGIN_EXAMPLE prolog
-?- C + "nice" = woah + Z.
-C = woah,
-Z = "nice".
-
-% ‘+’ and ‘/’ are different, so no way to make these equal.
-?- C + "nice" = woah / Z.
-false.
-#+END_EXAMPLE
-
-* Basics
-
-  + Unification only tries to make both sides of an equality true by binding free
-    variables to expressions. It does not do any arithmetic.
-
-  + Use ~is~ to perform arithmetic.
-
-#+BEGIN_SRC prolog
-% ?- X = 3 + 2.  %% X = 3 + 2
-% ?- X is 3 + 2. %% X = 5
-#+END_SRC
-
-~Print~ predicate always succeeds, never binds any variables, and prints out its
-parameter as a side effect.
+* Conjunction
 
 + Conjunction: ~p(X), q(X)~ means “let ~X~ be /a/ solution to ~p~, then use it in query ~q~.”
-  - Operational semantics: Let ~X~ be the first solution declared, found, for ~p~,
+
++ Operational semantics: Let ~X~ be the first solution declared, found, for ~p~,
     then try ~q~; if it fails, then /backtrack/ and pick the next declared solution to ~p~,
     if any, and repeat until ~q~ succeeds.
 
-    For example, ~p(X), print(X), fail.~ gets a solution to ~p~, prints it, then fails
++ For example, ~p(X), print(X), fail.~ gets a solution to ~p~, prints it, then fails
     thereby necessitating a backtrack to obtain a different solution ~X~ for ~p~, then
     repeats. In essence, this is prints all solutions to ~p~
     ---a so-called “fail driven loop”.
@@ -243,66 +325,242 @@ yum(maths).
 % ?- yum(Y), writeln(Y), fail. %⇒ pie apples maths false.
 #+END_SRC
 
-Use built-ins ~var~ and ~novar~ to check if a variable is free or bound.
+* Disjunction
+
+  Since a Prolog program is the conjunction of all its clauses:
+
+#+BEGIN_SRC prolog :tangle no
+% (head ⇐ body₁) ∧ (head ⇐ body₂)
+head :- body₁.
+head :- body₂.
+
+≅
+
+% head  ⇐  body₁ ∨ body₂
+head :- body₁ ; body₂.
+#+END_SRC
+
+* Arithmetic with ~is~
+
+  + Unification only tries to make both sides of an equality true by binding free
+    variables to expressions. It does not do any arithmetic.
+
+  + Use ~is~ to perform arithmetic.
+
+#+BEGIN_SRC prolog
+% ?- X = 3 + 2.  %% X = 3 + 2
+% ?- X is 3 + 2. %% X = 5
+#+END_SRC
+
+* Declaration Ordering Matters
+
+When forming a recursive relation, ensure the base case, the terminating portion,
+  is declared before any portions that require recursion. Otherwise the program may
+  loop forever.
+
+\room
+Unification is performed using depth-first search using the order of the declared
+  relationships. For example, the following works:
+
+#+BEGIN_SRC prolog
+% Graph
+edge(a, b). edge(b ,c). edge(c, d).
+
+% Works
+path(X, X).
+path(X, Y) :- edge(Z, Y), path(X, Z).
+% ?- path(a, d). %⇒ true.
+
+% Fails: To find a path, we have to find a path, before an edge!
+% The recursive clause is first and so considerd before the base clause!
+path_(X, Y) :- path_(X, Z), edge(Z, Y).
+path_(X, X).
+% ?- path_(a, d). %⇒ loops forever!
+#+END_SRC
+
+* Cuts
+
+  + Ensure deterministic behaviour:
+    Discard choice points of a ancestor frames.
+
+  +  ~p(X, a), !~ only produces one answer to ~X~:
+    Do not search for additional solutions once /a/ solution has been found to ~p~.
+
+    E.g., only one ~X~ solves the problem and trying to
+    find another leads to infinite search ---“green cut”---
+    or unintended candidate results ---“red cut”.
+
+* ADT: Pairs, Numbers, Lists, and Trees
+
++ Uniform treatment of all datatypes as predicates!
+
+#+BEGIN_SRC prolog
+% In Haskell: Pair a b = MkPair a b
+
+pair(_, _).
+
+% ?- pair(1, "nice").
+% ?- pair(1, "nice") = pair(A, "nice"). %⇒ A = 1
+
+% In Haskell: Nat = Zero | Succ Nat
+
+nat(zero).
+nat(succ(N)) :- nat(N).
+
+% ?- nat(succ(succ(zero))).
+
+sum(zero, N, N).
+sum(succ(M), N, succ(S)) :- sum(M, N, S).
+
+% ?- Two = succ(succ(zero)), Four = succ(succ(succ(succ(zero)))), sum(Two, Two, Four).
+#+END_SRC
+
+#+BEGIN_SRC prolog
+% In Haskell: Tree a = Leaf a | Branch (Tree a) (Tree a)
+
+tree(leaf(_)).
+tree(branch(L, R)) :- tree(L), tree(R).
+
+% ?- A = leaf(1), B = leaf(2), L = branch(A, B), R = branch(A, A), tree(branch(L, R)).
+
+#+END_SRC
+
+Programming via specification: Lisp lists, for example, are defined by the following
+equations.
+#+BEGIN_SRC prolog
+% Head: (car (cons X Xs)) = X
+% Tail: (cdr (cons X Xs)) = Xs
+% Extensionality: (cons (car Xs) (cdr Xs)) = Xs, for non-null Xs.
+
+% We can just write the spec up to produce the datatype!
+% We simply transform /functions/ car and cdr into relations;
+% leaving the constructor, cons, alone.
+
+% What are lists?
+list(nil).
+list(cons(_, Xs)) :- list(Xs).
+
+null(nil).
+
+car(cons(X, Xs), X) :- list(Xs).
+cdr(cons(_, Xs), Xs) :- list(Xs).
+
+% ?- true.
+% - list(Ys), not(null(L)), list(cons(car(Ys, Y), cdr(Ys, L))). % loops.
+
+% ?- [1] = [1|[]].
+#+END_SRC
+
+* Built-in Lists
+
+Lists are enclosed in brackets, separated by commas,
+and constructed out of cons “|”.
+#+BEGIN_SRC prolog
+% ?- ["one", two, 3] = [Head|Tail].
+#+END_SRC
+
+See [[http://www.swi-prolog.org/pldoc/man?section=lists][here]] for the list library, which includes:
+#+BEGIN_SRC prolog
+member(element, list)
+append(list1, list2, lists12)
+prefix(part, whole)
+nth0(index, list, element)
+last(list, element)
+length(list, number)
+reverse(list1, list2)
+permutation(list1, list2)
+sum_list(list, number)
+max_list(list, number)
+is_set(list_maybe_no_duplicates)
+#+END_SRC
+
+* Higher-order
+
++ Prolog is limited to first-order logic: We cannot bind variables to relations.
++ Prolog /indirectly/ supports higher-order rules.
+
+#+BEGIN_SRC prolog
+colour(bike, red).
+colour(chair, blue).
+
+% Crashes!
+% is_red(C, X, Y) :- C(X, Y)
+
+% Works
+is_red(C, X, Y) :- call(C, X, Y).
+
+% ?- is_red(colour, bike, X). %⇒ X = red.
+#+END_SRC
+
+* ~Print, var, nonvar~
+~Print~ predicate always succeeds, never binds any variables, and prints out its
+parameter as a side effect.
+
+\room
+Use built-ins ~var~ and ~nonvar~ to check if a variable is free or bound.
 #+BEGIN_SRC prolog
 % ?- var(Y).  %⇒ true
 % ?- Y = 2, var(Y). %⇒ false
-% ?- Y = 2, novar(Y). %⇒ true
+% ?- Y = 2, nonvar(Y). %⇒ true
 #+END_SRC
 
-
-* Adminstriva
-+  Write a prolog program as a text file with a .pl ending. For example, program.pl.
-+  Open SWI-Prolog by invoking swipl in the terminal.
-+ In SWI-Prolog, type [program] to load the program, i.e. the file name in brackets, but without the ending.
-+ In order to query the loaded program, type goals and watch the output.
-+ To exit SWI-Prolog, type halt..
-
-Alternatively, you can also load the program by passing its name as a parameter to SWI-Prolog: swipl -s program.pl.
-
+* spacing newpage :ignore:
+  # \newpage
+  \vfill
 * Reads
   Organised in terms of length:
-+ [[https://www.matchilling.com/introduction-to-logic-programming-with-prolog/][Introduction to logic programming with Prolog]] --12 minute read.
-+ [[http://www.doc.gold.ac.uk/~mas02gw/prolog_tutorial/prologpages/index.html#menu][Introduction to Prolog ---with interactive quizzes]]
-+ [[https://www.cpp.edu/~jrfisher/www/prolog_tutorial/pt_framer.html][prolog :- tutorial]]
++ [[https://www.matchilling.com/introduction-to-logic-programming-with-prolog/][Introduction to logic programming with Prolog]] ---12 minute read.
++ [[http://www.doc.gold.ac.uk/~mas02gw/prolog_tutorial/prologpages/index.html#menu][Introduction to Prolog]] ---with interactive quizzes
++ [[https://www.youtube.com/watch?v=SykxWpFwMGs][Derek Banas' Prolog Tutorial]]  ---1 hour video
++ [[https://blog.algorexhealth.com/2018/11/a-practo-theoretical-introduction-to-logic-programming/][A Practo-Theoretical Introduction to Logic Programming]]  ---a *colourful* read showing Prolog ≅ SQL.
++ [[https://en.wikibooks.org/wiki/Prolog][Prolog Wikibook]] ---slow-paced and cute
++ [[http://www.cs.nuim.ie/~jpower/Courses/Previous/PROLOG/][James Power's Prolog Tutorials]]
++ [[https://www3.risc.jku.at/education/courses/ws2009/logic-programming/][Introduction to Logic Programming]] ---course notes and more!
++ [[https://stackoverflow.com/questions/tagged/prolog][Stackoverflow Prolog Questions]]  ---nifty FAQ stuff
++ [[https://sites.google.com/site/prologsite/prolog-problems][99 Prolog Problems]]   ---with solutions
++ [[https://www.cis.upenn.edu/~matuszek/cit594-2012/Pages/backtracking.html][Backtracking]]
++ [[http://web.engr.oregonstate.edu/~erwig/papers/Zurg_JFP04.pdf][Escape from Zurg: An Exercise in Logic Programming]]
++ [[https://pdfs.semanticscholar.org/57d3/1ca47fa9688089b9b7e7c19c199aa03aff1e.pdf][Use of Prolog for developing a new programming language]] ---Erlang!
++ [[https://www.cpp.edu/~jrfisher/www/prolog_tutorial/pt_framer.html][prolog :- tutorial]] ---Example oriented
++ [[http://www.learnprolognow.org/][Learn Prolog Now!]]  ---thorough, from basics to advanced
++ [[http://www.pathwayslms.com/swipltuts/index.html][Real World Programming in SWI-Prolog]]
+# + https://learnxinyminutes.com/docs/prolog/
+# + [[http://faculty.nps.edu/ncrowe/book/chap14.html][Prolog's Logical Limitations]]
 
-+ https://learnxinyminutes.com/docs/prolog/
+# Prolog versus you, https://www.springer.com/gp/book/9783540175773
+
+# Chapter 2, problem-oriented
+# http://www.anclp.pl/download/AN_CLP.pdf
+
 * COMMENT Making README.md
 
 C-c C-c: Evaluate src block.
 
 #+NAME: make-readme
-#+BEGIN_SRC emacs-lisp :results none
+#+BEGIN_SRC elisp :results none
 (with-temp-buffer
     (insert
     "#+EXPORT_FILE_NAME: README.md
-     #+HTML: <h1> CheatSheet </h1>
-     #+OPTIONS: toc:nil d:nil
+     ,#+HTML: <h1> PrologCheatSheet </h1>
+     ,#+OPTIONS: toc:nil d:nil
      # Toc is displayed below at a strategic position.
 
-     Pretty cheat sheets, or “reference cards”, obtainable from Org-mode files.
+    Basics of relational programming with Prolog
+    ---PROgramming in LOGic
+    ^_^
 
-     :Hide:
-     This project is to contain a listing of common results in X Theory.
+    [[https://swish.swi-prolog.org/p/algorex_prolog.pl][Try Prolog online]]
 
-     *The repo contains other articles I've written on X Theory;*
-     *which may be read in a blog-format at:*
-     https://alhassy.github.io/blog/categories/#Xtheory
-     :End:
-
-     *The listing sheet, as PDF, can be found
+     ,*The listing sheet, as PDF, can be found
      [here]({{{URL}}}/blob/master/CheatSheet.pdf)*,
      while below is an unruly html rendition.
 
-     :Hide:
      This reference sheet is built around the system
      https://github.com/alhassy/CheatSheet.
-     :End:
 
-     #+TOC: headlines 2
-     #+INCLUDE: CheatSheet.org
+     ,#+TOC: headlines 2
+     ,#+INCLUDE: CheatSheet.org
     ")
-    ;; (set-visited-file-name "ReadIt2.md")
     (org-mode)
     (org-md-export-to-markdown)
 )
