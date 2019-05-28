@@ -95,6 +95,9 @@ Here's my current setup:
 )))
 #+END_SRC
 
+#+RESULTS:
+| lambda | nil | (interactive) |
+
 For example:
 #+BEGIN_SRC prolog
 magicNumber(7).
@@ -107,8 +110,7 @@ magicNumber(42).
 
 Or
 #+BEGIN_SRC prolog
-main :-
-	write('Hello, world!').
+main :- write('Hello, world!').
 
 % ?- main.
 #+END_SRC
@@ -116,6 +118,96 @@ main :-
 ToDo: Get the query, replace (,) with space, split to words, filter those
 that start with a capital letter, these are the variables. Execute:
 forall( (query) , ( write("Var0 = "), write(Var0), write(" "), write("Var1 = "), … ) ))
+
+* Nullary Facts
+
+We declare relations by having them begin with a lowercase letter;
+variables are distinguished by starting with a capital letter.
+
+#+BEGIN_SRC prolog
+jasim_is_nice.
+
+% ?- jasim_is_nice. %⇒ true: We declared it so.
+
+it_is_raining. /* Another fact of our world */
+
+% ?- it_is_raining. %⇒ true
+
+eats(fred, mangoes).
+eats(bob, apples).
+eats(fred, oranges).
+
+% ?- eats(bob, apples). %⇒ true
+
+% Which foods are eaten by fred?
+% ?- eats(fred, what). %⇒ false; ‘what’ is name!
+% ?- eats(fred, What). %⇒ mangoes oranges
+#+END_SRC
+
+Here's a cute one:
+#+BEGIN_SRC prolog
+% All men are mortal.
+mortal(X) :- man(X).
+
+% Socrates is a man.
+man(socrates).
+
+% Hence, he's expected to be mortal.
+% ?- mortal(socrates). %⇒ true
+
+% What about Plato?
+% ?- mortal(plato). %⇒ false, plato's not a man.
+
+% Let's fix that.
+man(plato).
+
+% Who is mortal?
+% ?- mortal(X). % ⇒ socrates plato
+#+END_SRC
+
+* Lists
+
+Lists are enclosed in brackets, separated by commas,
+and constructed out of cons “|”.
+#+BEGIN_SRC prolog
+% ?- ["one", two, 3] = [Head|Tail].
+#+END_SRC
+
+See [[http://www.swi-prolog.org/pldoc/man?section=lists][here]] for the list library, which includes:
+| member(element, list)            |
+| append(list1, list2, lists12)    |
+| prefix(part, whole)              |
+| nth0(index, list, element)       |
+| last(list, element)              |
+| length(list, number)             |
+| reverse(list1, list2)            |
+| permutation(list1, list2)        |
+| sum_list(list, number)           |
+| max_list(list, number)           |
+| is_set(list_maybe_no_duplicates) |
+
+
+* Core Ideas
+
+Prolog's execution model is based on 4 building blocks:
+Logical or, Logical and, term rewriting, and unification.
+
+  + Unification :: Can the given terms be made to represent the same structure?
+    - This is how type inference is made to work in all (?) languages.
+  + Backtracking :: When a choice in unification causes it to fail, go back to the
+    most recent choice point and select the next avialable choice.
+
+Unification performs no simplification, whence no arithmetic.
+This means, for example, we can form pairs by sticking an infix operator between two items; moreover we can form distinct kinds of pairs by using different operators:
+#+BEGIN_EXAMPLE prolog
+?- C + "nice" = woah + Z.
+C = woah,
+Z = "nice".
+
+% ‘+’ and ‘/’ are different, so no way to make these equal.
+?- C + "nice" = woah / Z.
+false.
+#+END_EXAMPLE
 
 * Basics
 
@@ -159,7 +251,22 @@ Use built-ins ~var~ and ~novar~ to check if a variable is free or bound.
 #+END_SRC
 
 
+* Adminstriva
++  Write a prolog program as a text file with a .pl ending. For example, program.pl.
++  Open SWI-Prolog by invoking swipl in the terminal.
++ In SWI-Prolog, type [program] to load the program, i.e. the file name in brackets, but without the ending.
++ In order to query the loaded program, type goals and watch the output.
++ To exit SWI-Prolog, type halt..
 
+Alternatively, you can also load the program by passing its name as a parameter to SWI-Prolog: swipl -s program.pl.
+
+* Reads
+  Organised in terms of length:
++ [[https://www.matchilling.com/introduction-to-logic-programming-with-prolog/][Introduction to logic programming with Prolog]] --12 minute read.
++ [[http://www.doc.gold.ac.uk/~mas02gw/prolog_tutorial/prologpages/index.html#menu][Introduction to Prolog ---with interactive quizzes]]
++ [[https://www.cpp.edu/~jrfisher/www/prolog_tutorial/pt_framer.html][prolog :- tutorial]]
+
++ https://learnxinyminutes.com/docs/prolog/
 * COMMENT Making README.md
 
 C-c C-c: Evaluate src block.
