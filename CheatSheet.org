@@ -58,7 +58,7 @@ f9 push changes
 #+LATEX_HEADER: \def\dontdofcolorbox{\renewcommand\fcolorbox[4][]{##4}}
 #+LATEX_HEADER: \makeatother
 
-* COMMENT Homemade Interactive Prolog Setup
+* Homemade Interactive Prolog Setup
 
 In Prolog, one declares a relationship ~r(x0, x1, …, xn)~ to be true for the declared
 ~xi~ ---with a change of perspective any of the ~xi~ can be considered ‘input’ and the
@@ -167,15 +167,16 @@ Input arguments and output arguments are the same
 thing! Only perspective shifts matter.
 
 \room
-For example, defining a relation ~plus(X, Y, Sum)~
-/intended/ to be true precisely when ~Sum ≈ X + Y~
-gives us two other methods!
-Subtract: ~plus(4, Y, 8)~ yields all solutions ~Y~ to
-the problem ~8 = 4 + Y~.
-Partitions: ~plus(X, Y, 8)~ yields all pairs ~X, Y~
-that sum to 8.
+For example, defining a relation ~append(XS, YS, ZS)~
+/intended/ to be true precisely when ~ZS~ is the catenation of ~XS~ with ~YS~,
+gives us three other methods besides being a predicate itself!
+List construction: ~append([1, 2], [3, 4], ZS)~ ensures ~ZS~ is the catenation list.
+List subtraction: ~append([1,2], YS, [1, 2, 3, 4])~ yields all solutions ~YS~ to
+the problem ~[1, 2] ++ YS = [1, 2, 3, 4]~.
+Partitions: ~append(XS, YS, [1, 2, 3, 4])~ yields all pairs of lists that catenate
+to ~[1,2, 3, 4]~. _Four methods for the price of one!_
 
-
+\room
 Prolog is PROgramming in LOGic.
 
 - Prolog is declarative: A program is a collection of ‘axioms’ from which ‘theorems’
@@ -210,8 +211,12 @@ Prolog is PROgramming in LOGic.
 
   + Unification :: Can the given terms be made to represent the same structure?
     - This is how type inference is made to work in all (?) languages.
+
   + Backtracking :: When a choice in unification causes it to fail, go back to the
     most recent choice point and select the next avialable choice.
+
+    \room
+    Nullary built-in predicate ~fail~ always fails as a goal and causes backtracking.
 
 \room
 Unification:
@@ -245,7 +250,7 @@ unify(F(X0, …, XN), G(Y0, …, YN)) :- F = G, X_i = Y_i.
 
 #+END_SRC
 
-* Facts ---Nullary Relations
+* Facts & Relations
 
 We declare relations by having them begin with a lowercase letter;
 variables are distinguished by starting with a capital letter.
@@ -334,7 +339,7 @@ yum(maths).
 head :- body₁.
 head :- body₂.
 
-≅
+≈
 
 % head  ⇐  body₁ ∨ body₂
 head :- body₁ ; body₂.
@@ -345,11 +350,35 @@ head :- body₁ ; body₂.
   + Unification only tries to make both sides of an equality true by binding free
     variables to expressions. It does not do any arithmetic.
 
-  + Use ~is~ to perform arithmetic.
-
-#+BEGIN_SRC prolog
+  + Use ~is~ to perform arithmetic with ~+, -, *, /, mod~.
+  #+BEGIN_SRC prolog
 % ?- X = 3 + 2.  %% X = 3 + 2
+
 % ?- X is 3 + 2. %% X = 5
+
+% ?- X is 6 / 3. %̄⇒ X = 2.
+
+% ?- X is  5 / 3. %̄⇒ X = 1.6666666666666667.
+
+% ?- X is 5 // 3. %̄⇒ X = 1.
+
+% ?- X is 5 mod 3. %̄⇒ X = 2.
+#+END_SRC
+
+  + Comparison operators: ~=, \=, <, >~, ~=<~, and ~>=~.
+
+  \room
+  Atoms, or nullary predicates, are represented as a lists of numbers; ASCII codes.
+#+BEGIN_SRC prolog
+% ?- name(woah_hello, X). %⇒ X = [119,111,97,104,95,104,101,108,108,111]
+% ?- name(woah, X).       %⇒ X = [119,111,97,104]
+#+END_SRC
+
+Exercise: We can use this to compare two atoms lexicocraphically.
+
+Incidentally, we can obtain the characters in an atom by using the built-in ~atom_chars~.
+#+BEGIN_SRC prolog
+% ?- atom_chars(nice, X). %⇒ X = [n, i, c, e].
 #+END_SRC
 
 * Declaration Ordering Matters
@@ -378,23 +407,16 @@ path_(X, X).
 % ?- path_(a, d). %⇒ loops forever!
 #+END_SRC
 
-* Cuts
-
-  + Ensure deterministic behaviour:
-    Discard choice points of a ancestor frames.
-
-  +  ~p(X, a), !~ only produces one answer to ~X~:
-    Do not search for additional solutions once /a/ solution has been found to ~p~.
-
-    E.g., only one ~X~ solves the problem and trying to
-    find another leads to infinite search ---“green cut”---
-    or unintended candidate results ---“red cut”.
-
 * ADT: Pairs, Numbers, Lists, and Trees
 
 + Uniform treatment of all datatypes as predicates!
 
 #+BEGIN_SRC prolog
+% In Haskell: Person = Me | You | Them
+person(me).
+person(you).
+person(them).
+
 % In Haskell: Pair a b = MkPair a b
 
 pair(_, _).
@@ -456,11 +478,28 @@ cdr(cons(_, Xs), Xs) :- list(Xs).
 Lists are enclosed in brackets, separated by commas,
 and constructed out of cons “|”.
 #+BEGIN_SRC prolog
-% ?- ["one", two, 3] = [Head|Tail].
+% ?- ["one", two, 3] = [Head|Tail]. %⇒ Head = "one", Tail = [two, 3].
+% ?- ["one", two, 3] = [_,Second|_]. %⇒ Second = two.
+% ?- [[the, Y], Z] = [[X, hare], [is, here]]. %⇒ X = the, Y = hare, Z = [is, here]
 #+END_SRC
 
-See [[http://www.swi-prolog.org/pldoc/man?section=lists][here]] for the list library, which includes:
 #+BEGIN_SRC prolog
+% Searching: x ∈ l?
+elem(Item, [Item|Tail]). % Yes, it's at the front.
+elem(Item, [_|Tail]) :- elem(Item, Tail). % Yes, it's in the tail.
+
+% ?- elem(one, [this, "is", one, thing]). %⇒ true
+% ?- elem(onE, [this, "is", one, thing]). %⇒ false
+#+END_SRC
+
+In Haskell, we may write ~x:xs~, but trying that here forces us to write
+~[X|XS]~ or ~[X|Xs]~ and accidentally mismatching the capitalisation of the ‘s’
+does not cause a compile-time error but will yield an unexpected logical error
+--e.g., in the recursive clause use ~Taill~ instead of ~Tail~.
+As such, prefer the ~[Head|Tail]~ or ~[H|T]~ naming.
+
+See [[http://www.swi-prolog.org/pldoc/man?section=lists][here]] for the list library, which includes:
+#+BEGIN_SRC prolog :tangle no
 member(element, list)
 append(list1, list2, lists12)
 prefix(part, whole)
@@ -473,6 +512,170 @@ sum_list(list, number)
 max_list(list, number)
 is_set(list_maybe_no_duplicates)
 #+END_SRC
+
+Exercise: Implement these functions.
+:MySolutions:
+#+BEGIN_SRC prolog
+% member is above, ‘elem’.
+
+append([], List2, List2).
+append([H|T], List2, [H|Append]) :- append(T, List2, Append).
+
+% ?- append([1,"two", three], [four, "5", "6"], Result).
+
+prefix([], List).
+prefix([H|T], [H|List]) :- prefix(T, List).
+
+% ?- prefix([1,2,three], [1, 2, three, four]).
+% ?- not(prefix([1,2,three], [1, 2])).
+
+nth0(0, [H|T], H).
+nth0(X, [_|T], E) :- Y is X - 1, nth0(Y, T, E).
+
+% ?- nth0(2, [one, two, three], X).
+% ?- not(nth0(2, [one, two], X)).
+
+last([H],H).
+last([_|T], L) :- last(T, L).
+
+% ?- last([1,2,3], L).
+% ?- last([1,2], L).
+% ?- not(last([], L)).
+
+mylength([], 0).
+mylength([H|T], Res) :- length(T, L), Res is L + 1.
+
+% ?- mylength([1,2,3], L).
+
+% count(E, L, N)  ≡  E occurs N times in L
+count(E, [], 0).
+count(E, [E|T], Res) :- count(E, T, N), Res is N + 1.
+count(E, [_|T], N)   :- count(E, T, N).
+
+% ?- count(2, [1,2,1,3,2], N).
+
+% For each element x of list1, let n1 and n2 be the number of times x occurs in list1 and list2; they're bag-equal if n1 = n2. Note: elem requires a non-empty list.
+#+END_SRC
+:End:
+
+Hint: Arithmetic must be performed using ~is~.
+
+* The Cut
+
+  + Ensure deterministic behaviour:
+    Discard choice points of ancestor frames.
+
+    - Once a goal has been satisfied, don't try anymore.
+      ---Efficient: We wont bother going through all possibilities,
+      the first solution found is sufficient for our needs.
+
+    - When a cut, ~“!”~, is encountered, the system is committed to all choices
+      made since the parent goal was invoked. All other alternatives are discarded.
+
+  +  ~p(X, a), !~ only produces one answer to ~X~:
+    Do not search for additional solutions once /a/ solution has been found to ~p~.
+
+    E.g., only one ~X~ solves the problem and trying to
+    find another leads to infinite search ---“green cut”---
+    or unintended candidate results ---“red cut”.
+
+Example ~a~: The first solution to ~b~ is 1, and when the cut is encountered, no
+other solutions for ~b~ are even considered. After a solution for ~Y~ is found, backtracking
+occurs to find other solutions for ~Y~.
+#+BEGIN_SRC prolog
+a(X,Y) :- b(X), !, c(Y).
+b(1). b(2). b(3).
+c(1). c(2). c(3).
+
+% ?- a(X, Y). %⇒ X = 1 ∧ Y = 1, X = 1 ∧ Y = 2, X = 1 ∧ Y = 3
+#+END_SRC
+# ?-  writeln("X ="), forall(a(X, Y), (write(X), writeln(Y))).
+
+Below the first solution found for ~e~ is 1, this is not a solution for ~f~,
+but backtracking cannot assign other values to ~X~ since ~X~'s value was determined
+already as 1 and this is the only allowed value due to the cut. But ~f(1)~ is not
+true and so ~d~ has no solutions. In contrast, ~d_no_cut~ is just the intersection.
+#+BEGIN_SRC prolog
+d(X) :- e(X), !, f(X).
+e(1). e(2). e(3). f(2).
+
+% ?- not(d(X)). %⇒ “no solution” since only e(1) considered.
+% ?- d(2). %⇒ true, since no searching performed and 2 ∈ e ∩ f.
+
+d_no_cut(X) :- e(X), f(X).
+% ?- d_no_cut(X). %⇒ X = 2.
+#+END_SRC
+
+The cut not only commits to the instantiations so far, but also commits to the clause
+of the goal in which it occurs, whence no other clauses are even tried!
+#+BEGIN_SRC prolog
+g(X) :- h(X), !, i(X).
+g(X) :- j(X).
+
+h(1). h(4). i(3). j(4).
+
+% ?- g(X). %⇒ fails
+% ?- f(
+#+END_SRC
+There are two clauses to prove ~g~, by default we pick the first one.
+Now we have the subgoal ~h~, for which there are two clauses and we select
+the first by default to obtain ~X = 1~. We now encounter the cut which means
+we have committed to the current value of ~X~ and the current clause to prove ~g~.
+The final subgoal is ~i(1)~ which is false. Backtracking does not allow us to select
+different goals, and it does not allow us to use the second clause to prove ~g~.
+Whence, ~g(X)~ fails. Likewise we fail for ~g(4)~. Note that if we had failed ~b~
+before the cut, say ~b~ had no solutions, then we fail that clause before encountering
+the cut and so the second rule is tried.
+
+\room
+Common use: When disjoint clauses cannot be enforced by pattern matching.
+
+#+BEGIN_SRC prolog :tangle no
+sum_to(0, 0).
+sum_to(N, Res) :- M is N - 1, sum_to(M, ResM), Res is ResM + N.
+
+% Example execution
+  sum_to(1, X)
+⇒ M is 0     --only clause 2 applies
+
+Now both clauses apply.
+
+Clause1: ⇒ ResM = 0, Res = 0.
+Clause2: ⇒ M′ is -1, sum_to(M′, ResM′), ⋯
+	 ⇒ Clause 2 applies here, with M″ = -2.
+	 ⇒ Loop forever.
+#+END_SRC
+
+After we commit to the first clause, /cut/ out all other alternative clauses:
+#+BEGIN_SRC prolog
+sum_to(0, 0) :- !.
+sum_to(N, Res) :- M is N - 1, sum_to(M, ResM), Res is ResM + N.
+
+% ?- sum_to(1, X).
+#+END_SRC
+
+It may be clearer to replace cuts with negations so as to enforce disjoint clauses.
+#+BEGIN_SRC prolog
+sum_to_not(0, 0).
+sum_to_not(N, Res) :- N \= 0, M is N - 1, sum_to(M, ResM), Res is ResM + N.
+
+% ?- sum_to_not(5, X). %⇒ X = 15.
+#+END_SRC
+
+In general, ~not(G)~ succeeds when /goal/ ~G~ fails.
+
+* Using Modules
+
+  The [[http://www.swi-prolog.org/pldoc/man?section=clpfd][Constraint Logic Programming over Finite Domains]] library provides a number of
+  useful functions, such as ~all_distinct~ for checking a list has unique elements.
+#+BEGIN_SRC prolog
+use_module(library(clpfd)).
+
+% ?- all_distinct([1,"two", two]).
+#+END_SRC
+
+
+See [[http://www.swi-prolog.org/pldoc/man?section=clpfd-sudoku][here]] for a terse solution to Sudoku.
 
 * Higher-order
 
@@ -492,7 +695,14 @@ is_red(C, X, Y) :- call(C, X, Y).
 % ?- is_red(colour, bike, X). %⇒ X = red.
 #+END_SRC
 
-* ~Print, var, nonvar~
+Translate between an invocation and a list representation by using ‘equiv’ ~=..~
+as follows:
+#+BEGIN_SRC prolog
+% ?- p(a, b, c) =.. Y. %⇒ Y = [p, a, b, c].
+% ?- Y =.. [p, a, b, c]. %⇒ Y = p(a, b, c).
+#+END_SRC
+
+* ~Print, var, nonvar, arg~
 ~Print~ predicate always succeeds, never binds any variables, and prints out its
 parameter as a side effect.
 
@@ -504,26 +714,69 @@ Use built-ins ~var~ and ~nonvar~ to check if a variable is free or bound.
 % ?- Y = 2, nonvar(Y). %⇒ true
 #+END_SRC
 
+\room
+Built-in ~arg(N,T,A~) succeeds if ~A~ is the ~N~-th argument of the term ~T~.
+#+BEGIN_SRC prolog
+% ?- arg(2, foo(x, y), y). %⇒ true
+#+END_SRC
+
 * spacing newpage :ignore:
-  # \newpage
-  \vfill
+  \newpage
+  # \vfill
+* Meta-Programming
+
++ Programs as data.
++ Manipulating Prolog programs with other Prolog programs.
+
+~clause(X, Y~) succeeds when ~X~ is the signature of a relation in the knowledge base,
+and ~Y~ is the body of one of its clauses. ~X~ must be provided.
+#+BEGIN_SRC prolog
+test(you, me, us).
+test(A, B, C) :- [A, B, C] = [the, second, clause].
+
+% ?- clause(test(Arg1, Arg2, Arg3), Body).
+% ⇒ ‘Body’ as well as ‘Arg𝒾’ are unified for each clause of ‘test’.
+#+END_SRC
+
+Here is a Prolog interpreter in Prolog ---an approximation to ~call~.
+#+BEGIN_SRC prolog
+% interpret(G) succeeds as a goal exactly when G succeeds as a goal.
+
+% Goals is already true.
+interpret(true) :- !.
+
+% A pair of goals.
+interpret((G, H)) :- !, interpret(G), interpret(H).
+
+% Simple goals: Find a clause whose head matches the goal and interpret its subgoals.
+interpret(Goal) :- clause(Goal,Subgoals), interpret(Subgoals).
+
+% ?- interpret(test(A, B, C)).
+#+END_SRC
+
+
+* spacing newpage :ignore:
+  \newpage
+  # \vfill
 * Reads
-  Organised in terms of length:
-+ [[https://www.matchilling.com/introduction-to-logic-programming-with-prolog/][Introduction to logic programming with Prolog]] ---12 minute read.
-+ [[http://www.doc.gold.ac.uk/~mas02gw/prolog_tutorial/prologpages/index.html#menu][Introduction to Prolog]] ---with interactive quizzes
-+ [[https://www.youtube.com/watch?v=SykxWpFwMGs][Derek Banas' Prolog Tutorial]]  ---1 hour video
-+ [[https://blog.algorexhealth.com/2018/11/a-practo-theoretical-introduction-to-logic-programming/][A Practo-Theoretical Introduction to Logic Programming]]  ---a *colourful* read showing Prolog ≅ SQL.
-+ [[https://en.wikibooks.org/wiki/Prolog][Prolog Wikibook]] ---slow-paced and cute
-+ [[http://www.cs.nuim.ie/~jpower/Courses/Previous/PROLOG/][James Power's Prolog Tutorials]]
-+ [[https://www3.risc.jku.at/education/courses/ws2009/logic-programming/][Introduction to Logic Programming]] ---course notes and more!
-+ [[https://stackoverflow.com/questions/tagged/prolog][Stackoverflow Prolog Questions]]  ---nifty FAQ stuff
-+ [[https://sites.google.com/site/prologsite/prolog-problems][99 Prolog Problems]]   ---with solutions
-+ [[https://www.cis.upenn.edu/~matuszek/cit594-2012/Pages/backtracking.html][Backtracking]]
-+ [[http://web.engr.oregonstate.edu/~erwig/papers/Zurg_JFP04.pdf][Escape from Zurg: An Exercise in Logic Programming]]
-+ [[https://pdfs.semanticscholar.org/57d3/1ca47fa9688089b9b7e7c19c199aa03aff1e.pdf][Use of Prolog for developing a new programming language]] ---Erlang!
-+ [[https://www.cpp.edu/~jrfisher/www/prolog_tutorial/pt_framer.html][prolog :- tutorial]] ---Example oriented
-+ [[http://www.learnprolognow.org/][Learn Prolog Now!]]  ---thorough, from basics to advanced
-+ [[http://www.pathwayslms.com/swipltuts/index.html][Real World Programming in SWI-Prolog]]
+
++ [X] [[https://www.matchilling.com/introduction-to-logic-programming-with-prolog/][Introduction to logic programming with Prolog]] ---12 minute read.
++ [X] [[http://www.doc.gold.ac.uk/~mas02gw/prolog_tutorial/prologpages/index.html#menu][Introduction to Prolog]] ---with interactive quizzes
++ [ ] [[https://www.youtube.com/watch?v=SykxWpFwMGs][Derek Banas' Prolog Tutorial]]  ---1 hour video
++ [X] [[https://blog.algorexhealth.com/2018/11/a-practo-theoretical-introduction-to-logic-programming/][A Practo-Theoretical Introduction to Logic Programming]]  ---a *colourful* read showing Prolog ≅ SQL.
++ [ ] [[https://en.wikibooks.org/wiki/Prolog][Prolog Wikibook]] ---slow-paced and cute
++ [ ] [[http://www.cs.nuim.ie/~jpower/Courses/Previous/PROLOG/][James Power's Prolog Tutorials]]
++ [X] [[https://www3.risc.jku.at/education/courses/ws2009/logic-programming/][Introduction to Logic Programming Course]] ---Nice slides
++ [ ] [[https://stackoverflow.com/questions/tagged/prolog][Stackoverflow Prolog Questions]]  ---nifty FAQ stuff
++ [ ] [[https://sites.google.com/site/prologsite/prolog-problems][99 Prolog Problems]]   ---with solutions
++ [ ] [[https://www.metalevel.at/prolog][The Power of Prolog]] --up to date tutorial, uses libraries ;-)
++ [ ] [[https://www.cis.upenn.edu/~matuszek/cit594-2012/Pages/backtracking.html][Backtracking]]
++ [ ] [[http://web.engr.oregonstate.edu/~erwig/papers/Zurg_JFP04.pdf][Escape from Zurg: An Exercise in Logic Programming]]
++ [ ] [[https://www3.risc.jku.at/education/courses/ws2009/logic-programming/additional/Covington-Efficient-Prolog.pdf][Efficient Prolog]] --Practical tips
++ [ ] [[https://pdfs.semanticscholar.org/57d3/1ca47fa9688089b9b7e7c19c199aa03aff1e.pdf][Use of Prolog for developing a new programming language]] ---Erlang!
++ [ ] [[https://www.cpp.edu/~jrfisher/www/prolog_tutorial/pt_framer.html][prolog :- tutorial]] ---Example oriented
++ [ ] [[http://www.learnprolognow.org/][Learn Prolog Now!]]  ---thorough, from basics to advanced
++ [ ] [[http://www.pathwayslms.com/swipltuts/index.html][Real World Programming in SWI-Prolog]]
 # + https://learnxinyminutes.com/docs/prolog/
 # + [[http://faculty.nps.edu/ncrowe/book/chap14.html][Prolog's Logical Limitations]]
 
@@ -531,6 +784,37 @@ Use built-ins ~var~ and ~nonvar~ to check if a variable is free or bound.
 
 # Chapter 2, problem-oriented
 # http://www.anclp.pl/download/AN_CLP.pdf
+
+* COMMENT Backtracking
++ Find match for the first goal.
++ Then see if matches the second.
++ If not, find another match for the first.
++ See if this matches the second.
++ etc.
+
+~findall(X, Goal, L)~ succeeds if ~L~ is the list of all those ~X~'s for which ~Goal~ holds.
+
+* COMMENT Practice
+
+** Coding in transitivity recursively
+#+BEGIN_SRC prolog
+taller(bob, mike).
+taller(mike, jim).
+taller(jim, george).
+
+taller(X, Y) :- taller(X, Z), taller(Z, Y).
+
+% ?- taller(bob, george). %⇒ true
+% ?- taller(X, Y). %⇒ stack overflow
+
+% better one: Transitivity is 1 or more steps.
+ttaller(X, Y) :- taller(X, Y).
+ttaller(X, Y) :- taller(X, Z), ttaller(Z, Y).
+
+% ?- ttaller(bob, george). %⇒ true
+% ?- ttaller(X, Y). %⇒ stack overflow
+#+END_SRC
+
 
 * COMMENT Making README.md
 
