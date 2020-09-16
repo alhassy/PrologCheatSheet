@@ -2,6 +2,19 @@
 # http://cs.union.edu/~striegnk/learn-prolog-now/html/node34.html#sec.l4.member
 #
 
+#  Makam is a dialect of λ-Prolog designed as a tool for rapid language prototyping. I won't go into details, but it's based on the idea of higher-order logic programming.
+#
+# https://www.tweag.io/posts/2019-11-28-pcf-makam-spec
+
+# The Prolog Dictionary
+# http://www.cse.unsw.edu.au/~billw/prologdict.html
+
+# Solving a logic puzzle using Prolog
+# https://stackoverflow.com/questions/1939054/solving-a-logic-puzzle-using-prolog
+
+# Logic Puzzles with Prolog
+# https://www.metalevel.at/prolog/puzzles
+
 :More:
 % types
 p(1). p(2). p(3).
